@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sophie's Money Tracker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="My Money">
+<meta name="theme-color" content="#1d2420">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<style>
+/* Layout: one phone column. Total on top, three bucket cards, business pockets, history. Fixed action bar at the bottom. */
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --fg:#1d2420; --muted:#66706a; --line:#dde3de;
+  --spend:#0f7a6c; --spend-soft:#dcf0ec;
+  --save:#2f5fb3; --save-soft:#e1e9f7;
+  --biz:#c26a0a; --biz-soft:#fbead6;
+  --neg:#b3261e; --ok:#2d7a3a;
+  --shadow:0 1px 2px rgba(20,30,25,.06),0 6px 18px rgba(20,30,25,.06);
+  --display:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121614; --surface:#1b211e; --fg:#e8eee9; --muted:#9aa49e; --line:#2c3430;
+  --spend:#4cc3b1; --spend-soft:#173430; --save:#7fa6ee; --save-soft:#1b2740;
+  --biz:#f0a24a; --biz-soft:#3a2a17; --neg:#f2867e; --ok:#7ccf8a;
+  --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121614; --surface:#1b211e; --fg:#e8eee9; --muted:#9aa49e; --line:#2c3430;
+  --spend:#4cc3b1; --spend-soft:#173430; --save:#7fa6ee; --save-soft:#1b2740;
+  --biz:#f0a24a; --biz-soft:#3a2a17; --neg:#f2867e; --ok:#7ccf8a;
+  --shadow:none; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:520px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 120px;display:flex;flex-direction:column;gap:18px}
+.num{font-variant-numeric:tabular-nums}
+h1{font-family:var(--display);font-weight:800;font-size:1.35rem;margin:0;letter-spacing:-.01em}
+h2{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:0}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.total{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1;letter-spacing:-.02em}
+.buckets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bucket{background:var(--surface);border-radius:14px;padding:12px;box-shadow:var(--shadow);border:1px solid var(--line);min-width:0}
+.bucket .amt{font-weight:700;font-size:1.05rem;margin-top:4px;overflow-wrap:anywhere}
+.bucket .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.biz{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
+.pocket{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:baseline}
+.pocket .bar{grid-column:1/-1;height:6px;background:var(--biz-soft);border-radius:4px;overflow:hidden}
+.pocket .bar i{display:block;height:100%;background:var(--biz);border-radius:4px}
+.pocket .why{grid-column:1/-1;font-size:.8rem;color:var(--muted)}
+.neg{color:var(--neg)}
+.hist{display:flex;flex-direction:column;gap:6px}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.row:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--save);outline-offset:2px}
+.row .sub{font-size:.8rem;color:var(--muted);grid-column:1/-1}
+.in{color:var(--ok)}
+.month{margin-top:8px}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.bar-actions{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));z-index:5}
+.bar-actions .inner{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:12px;padding:12px 10px;cursor:pointer;background:var(--fg);color:var(--bg)}
+.btn.in{background:var(--ok);color:#fff}
+.btn.out{background:var(--neg);color:#fff}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn.small{padding:8px 12px;font-size:.85rem}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,15,12,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:520px;border-radius:18px 18px 0 0;max-height:92%;overflow:auto;padding-top:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg button{font:inherit;font-weight:600;border:0;background:transparent;color:var(--muted);padding:9px 6px;border-radius:9px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-weight:600;font-size:.9rem}
+.field .hint{font-size:.8rem;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:16px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);width:100%}
+.money{position:relative}
+.money span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600}
+.money input{padding-left:28px}
+.calc{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;justify-content:space-between;gap:10px;font-weight:600}
+.err{color:var(--neg);font-weight:600;font-size:.9rem;min-height:1.2em}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sheet-actions{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+@media (max-width:360px){.buckets{grid-template-columns:1fr}.total{font-size:2.1rem}}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="label">Sophie's account</div>
+      <div class="total num" id="total">R0.00</div>
+    </div>
+    <h1>Money Tracker</h1>
+  </header>
+
+  <section class="buckets" aria-label="Buckets">
+    <div class="bucket"><div class="label"><span class="dot" style="background:var(--spend)"></span>Spending</div><div class="amt num" id="b-spend">R0</div></div>
+    <div class="bucket"><div class="label"><span class="dot" style="background:var(--save)"></span>Savings</div><div class="amt num" id="b-save">R0</div></div>
+    <div class="bucket"><div class="label"><span class="dot" style="background:var(--biz)"></span>Business</div><div class="amt num" id="b-biz">R0</div></div>
+  </section>
+
+  <section class="biz" aria-label="Business pockets">
+    <h2>Business pockets</h2>
+    <div id="pockets"></div>
+  </section>
+
+  <div id="empty" class="empty" hidden>
+    <h2>Start here</h2>
+    <div>Check your banking app and enter what is in each bucket right now. After that, add every deposit and every purchase here.</div>
+    <button class="btn" id="startBtn" type="button">Set starting balances</button>
+  </div>
+
+  <section class="biz" aria-label="Check against bank">
+    <h2>Does it match the bank?</h2>
+    <div class="field">
+      <label for="bankBal">Balance in your banking app</label>
+      <div class="money"><span>R</span><input id="bankBal" inputmode="decimal" placeholder="0.00"></div>
+    </div>
+    <div id="bankMsg" class="hint"></div>
+  </section>
+
+  <section aria-label="History" class="hist">
+    <h2>History</h2>
+    <div class="hint" style="font-size:.8rem;color:var(--muted)">Tap an entry to delete it.</div>
+    <div id="hist" class="hist"></div>
+  </section>
+
+  <section class="links" aria-label="Backup">
+    <button class="btn ghost small" id="backupBtn" type="button">Backup</button>
+    <button class="btn ghost small" id="restoreBtn" type="button">Restore</button>
+  </section>
+</div>
+
+<nav class="bar-actions" aria-label="Add">
+  <div class="inner">
+    <button class="btn in" id="inBtn" type="button">Money in</button>
+    <button class="btn out" id="outBtn" type="button">Spend</button>
+    <button class="btn" id="moveBtn" type="button">Move</button>
+  </div>
+</nav>
+
+<div id="scrim" class="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+const KEY = "sophie-money-v1";
+const P = {
+  spend:{name:"Spending", group:"Spending"},
+  save:{name:"Savings", group:"Savings"},
+  elec:{name:"Electricity & Filament", group:"Business", why:"Pays for power and filament for the next prints"},
+  wear:{name:"Machine Wear & Tear", group:"Business", why:"Repairs, nozzles and parts for the printer"},
+  time:{name:"Her Time", group:"Business", why:"Your pay for the hours you worked"},
+  profit:{name:"Profit", group:"Business", why:"What the business made after all costs"}
+};
+const BIZ = ["elec","wear","time","profit"];
+
+let state = {tx:[]};
+try { const s = localStorage.getItem(KEY); if (s) state = JSON.parse(s); } catch(e) {}
+if (!Array.isArray(state.tx)) state = {tx:[]};
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} }
+
+const $ = id => document.getElementById(id);
+const r = n => Math.round(n*100)/100;
+const fmt = n => (n<0?"-":"") + "R" + Math.abs(n).toLocaleString("en-ZA",{minimumFractionDigits:2,maximumFractionDigits:2});
+const num = v => { const n = parseFloat(String(v).replace(/\s/g,"").replace(",", ".")); return isFinite(n) ? r(n) : NaN; };
+const today = () => new Date().toISOString().slice(0,10);
+const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function balances(){
+  const b = {spend:0,save:0,elec:0,wear:0,time:0,profit:0};
+  for (const t of state.tx) for (const k in t.d) b[k] = r(b[k] + t.d[k]);
+  return b;
+}
+
+function describe(t){
+  const amt = Object.values(t.d).reduce((a,v)=>a+v,0);
+  if (t.type==="start") return {title:"Starting balances", amt, sub:"Opening amounts"};
+  if (t.type==="pocket") return {title:"Pocket money", amt, sub:`${fmt(t.d.spend||0)} spending, ${fmt(t.d.save||0)} savings`};
+  if (t.type==="biz") return {title:"Business sale"+(t.note?": "+t.note:""), amt, sub:BIZ.map(k=>`${P[k].name.split(" ")[0]} ${fmt(t.d[k]||0)}`).join(" · ")};
+  if (t.type==="spend") { const k=Object.keys(t.d)[0]; return {title:t.note||"Spent", amt, sub:"From "+P[k].name}; }
+  if (t.type==="move") { const from=Object.keys(t.d).find(k=>t.d[k]<0), to=Object.keys(t.d).find(k=>t.d[k]>0); return {title:"Moved money", amt:0, sub:`${fmt(t.d[to])} from ${P[from].name} to ${P[to].name}`}; }
+  return {title:"Entry", amt, sub:""};
+}
+
+function render(){
+  const b = balances();
+  const biz = r(BIZ.reduce((a,k)=>a+b[k],0));
+  const total = r(b.spend+b.save+biz);
+  $("total").textContent = fmt(total);
+  $("b-spend").textContent = fmt(b.spend);
+  $("b-save").textContent = fmt(b.save);
+  $("b-biz").textContent = fmt(biz);
+  for (const id of ["b-spend","b-save","b-biz"]) $(id).classList.toggle("neg", $(id).textContent.startsWith("-"));
+  const max = Math.max(1, ...BIZ.map(k=>b[k]));
+  $("pockets").innerHTML = BIZ.map(k=>`<div class="pocket"><div>${P[k].name}</div><div class="num ${b[k]<0?"neg":""}" style="font-weight:700">${fmt(b[k])}</div><div class="bar"><i style="width:${Math.max(0,b[k]/max*100)}%"></i></div><div class="why">${P[k].why}</div></div>`).join("");
+  $("empty").hidden = state.tx.length>0;
+
+  const sorted = [...state.tx].sort((a,b)=> (b.date+b.id).localeCompare(a.date+a.id));
+  let html = "", lastM = "";
+  for (const t of sorted){
+    const m = new Date(t.date+"T12:00").toLocaleDateString("en-ZA",{month:"long",year:"numeric"});
+    if (m!==lastM){ html += `<div class="label month">${m}</div>`; lastM = m; }
+    const d = describe(t);
+    const cls = d.amt>0?"in":d.amt<0?"neg":"";
+    html += `<button class="row" type="button" data-id="${t.id}"><span style="font-weight:600;min-width:0;overflow-wrap:anywhere">${esc(d.title)}</span><span class="num ${cls}" style="font-weight:700">${d.amt>0?"+":""}${d.amt?fmt(d.amt):""}</span><span class="sub">${new Date(t.date+"T12:00").toLocaleDateString("en-ZA",{day:"numeric",month:"short"})} · ${esc(d.sub)}</span></button>`;
+  }
+  $("hist").innerHTML = html || `<div style="color:var(--muted)">Nothing yet.</div>`;
+  bankCheck(total);
+}
+
+function bankCheck(total){
+  const v = num($("bankBal").value);
+  const msg = $("bankMsg");
+  if (isNaN(v)) { msg.textContent = "Type the balance from your banking app to check your tracker."; msg.style.color="var(--muted)"; return; }
+  const diff = r(v - total);
+  if (diff===0){ msg.textContent = "It matches. Nice work."; msg.style.color="var(--ok)"; }
+  else { msg.textContent = `The bank shows ${fmt(Math.abs(diff))} ${diff>0?"more":"less"} than your tracker. Look for a deposit or purchase you have not entered yet.`; msg.style.color="var(--neg)"; }
+}
+$("bankBal").addEventListener("input", ()=>render());
+
+/* ---- sheets ---- */
+function open(html, onReady){ $("sheet").innerHTML = html; $("scrim").hidden = false; onReady && onReady(); const f=$("sheet").querySelector("input,select,button"); f && f.focus(); }
+function close(){ $("scrim").hidden = true; $("sheet").innerHTML = ""; }
+$("scrim").addEventListener("click", e=>{ if (e.target===$("scrim")) close(); });
+document.addEventListener("keydown", e=>{ if (e.key==="Escape" && !$("scrim").hidden) close(); });
+
+const money = (id,label,hint="") => `<div class="field"><label for="${id}">${label}</label><div class="money"><span>R</span><input id="${id}" inputmode="decimal" placeholder="0.00"></div>${hint?`<div class="hint">${hint}</div>`:""}</div>`;
+const dateField = () => `<div class="field"><label for="f-date">Date</label><input id="f-date" type="date" value="${today()}"></div>`;
+const actions = (label) => `<div class="err" id="f-err" role="alert"></div><div class="sheet-actions"><button class="btn ghost" type="button" id="f-cancel">Cancel</button><button class="btn" type="button" id="f-ok">${label}</button></div>`;
+const pocketOptions = (sel) => Object.keys(P).map(k=>`<option value="${k}" ${k===sel?"selected":""}>${P[k].group==="Business"?"Business: ":""}${P[k].name}</option>`).join("");
+
+function addTx(type, d, date, note){
+  for (const k in d) if (!d[k]) delete d[k];
+  state.tx.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5), type, date, d, note:note||""});
+  save(); close(); render();
+}
+function wire(ok){ $("f-cancel").onclick = close; $("f-ok").onclick = ()=>{ const e = ok(); if (e) $("f-err").textContent = e; }; }
+
+function moneyIn(kind="pocket"){
+  const tabs = `<div class="seg" role="group" aria-label="Type"><button type="button" data-k="pocket" aria-pressed="${kind==="pocket"}">Pocket money</button><button type="button" data-k="biz" aria-pressed="${kind==="biz"}">Business sale</button></div>`;
+  let body;
+  if (kind==="pocket"){
+    body = `<h2>Pocket money in</h2>${tabs}${money("f-amt","How much came in?")}${money("f-save","How much goes to Savings?","The rest goes to Spending.")}<div class="calc"><span>To Spending</span><span class="num" id="f-calc">R0.00</span></div>${dateField()}${actions("Add")}`;
+  } else {
+    body = `<h2>Business sale</h2>${tabs}${money("f-amt","How much did you get paid?")}<div class="field"><label for="f-note">What did you sell?</label><input id="f-note" placeholder="e.g. 4 keyrings"></div>${money("f-elec","Electricity & Filament")}${money("f-wear","Machine Wear & Tear")}${money("f-time","Her Time","Your pay for the hours spent.")}<div class="calc"><span>Profit (what is left)</span><span class="num" id="f-calc">R0.00</span></div>${dateField()}${actions("Add")}`;
+  }
+  open(body, ()=>{
+    $("sheet").querySelectorAll(".seg button").forEach(b=>b.onclick=()=>moneyIn(b.dataset.k));
+    const calc = ()=>{
+      const a = num($("f-amt").value)||0;
+      const parts = kind==="pocket" ? (num($("f-save").value)||0) : ["f-elec","f-wear","f-time"].reduce((s,id)=>s+(num($(id).value)||0),0);
+      const left = r(a-parts); $("f-calc").textContent = fmt(left); $("f-calc").classList.toggle("neg", left<0);
+    };
+    $("sheet").querySelectorAll("input[inputmode]").forEach(i=>i.addEventListener("input",calc));
+    wire(()=>{
+      const a = num($("f-amt").value); const date = $("f-date").value||today();
+      if (!(a>0)) return "Enter the amount that came in.";
+      if (kind==="pocket"){
+        const s = num($("f-save").value)||0;
+        if (s<0) return "Savings can't be less than zero.";
+        if (s>a) return "Savings can't be more than the amount that came in.";
+        addTx("pocket",{save:s, spend:r(a-s)},date);
+      } else {
+        const e=num($("f-elec").value)||0, w=num($("f-wear").value)||0, t=num($("f-time").value)||0;
+        if (e<0||w<0||t<0) return "Amounts can't be less than zero.";
+        const p = r(a-e-w-t);
+        if (p<0) return `Your costs add up to more than the sale by ${fmt(-p)}. Check the numbers.`;
+        addTx("biz",{elec:e,wear:w,time:t,profit:p},date,$("f-note").value.trim());
+      }
+    });
+  });
+}
+
+function spend(){
+  open(`<h2>Spend</h2>${money("f-amt","How much did you spend?")}<div class="field"><label for="f-note">What on?</label><input id="f-note" placeholder="e.g. airtime, filament roll"></div><div class="field"><label for="f-from">Take it from</label><select id="f-from">${pocketOptions("spend")}</select><div class="hint" id="f-left"></div></div>${dateField()}${actions("Spend")}`, ()=>{
+    const show = ()=>{ const b=balances(); $("f-left").textContent = `${fmt(b[$("f-from").value])} in ${P[$("f-from").value].name}`; };
+    $("f-from").onchange = show; show();
+    wire(()=>{
+      const a=num($("f-amt").value), k=$("f-from").value, b=balances();
+      if (!(a>0)) return "Enter how much you spent.";
+      if (!$("f-note").value.trim()) return "Say what you spent it on.";
+      if (a>b[k]) return `There is only ${fmt(b[k])} in ${P[k].name}. Pick another bucket or move money first.`;
+      addTx("spend",{[k]:-a},$("f-date").value||today(),$("f-note").value.trim());
+    });
+  });
+}
+
+function move(){
+  open(`<h2>Move money</h2><div class="hint" style="color:var(--muted)">For example, move Profit to Savings, or pay yourself from Her Time into Spending. Your total stays the same.</div>${money("f-amt","How much?")}<div class="two"><div class="field"><label for="f-from">From</label><select id="f-from">${pocketOptions("profit")}</select></div><div class="field"><label for="f-to">To</label><select id="f-to">${pocketOptions("save")}</select></div></div><div class="hint" id="f-left" style="color:var(--muted)"></div>${dateField()}${actions("Move")}`, ()=>{
+    const show = ()=>{ const b=balances(); $("f-left").textContent = `${fmt(b[$("f-from").value])} available in ${P[$("f-from").value].name}`; };
+    $("f-from").onchange = show; show();
+    wire(()=>{
+      const a=num($("f-amt").value), f=$("f-from").value, t=$("f-to").value, b=balances();
+      if (!(a>0)) return "Enter how much to move.";
+      if (f===t) return "Pick two different buckets.";
+      if (a>b[f]) return `There is only ${fmt(b[f])} in ${P[f].name}.`;
+      addTx("move",{[f]:-a,[t]:a},$("f-date").value||today());
+    });
+  });
+}
+
+function startBalances(){
+  open(`<h2>Starting balances</h2><div class="hint" style="color:var(--muted)">Enter what is in each bucket today. They should add up to the balance in your banking app.</div>${Object.keys(P).map(k=>money("s-"+k,P[k].group==="Business"?"Business: "+P[k].name:P[k].name)).join("")}<div class="calc"><span>Total</span><span class="num" id="f-calc">R0.00</span></div>${dateField()}${actions("Save")}`, ()=>{
+    const calc=()=>{$("f-calc").textContent = fmt(r(Object.keys(P).reduce((s,k)=>s+(num($("s-"+k).value)||0),0)));};
+    $("sheet").querySelectorAll("input[inputmode]").forEach(i=>i.addEventListener("input",calc));
+    wire(()=>{
+      const d={}; for (const k in P){ const v=num($("s-"+k).value)||0; if (v<0) return "Amounts can't be less than zero."; d[k]=v; }
+      addTx("start",d,$("f-date").value||today());
+    });
+  });
+}
+
+$("hist").addEventListener("click", e=>{
+  const row = e.target.closest(".row"); if (!row) return;
+  const t = state.tx.find(x=>x.id===row.dataset.id); if (!t) return;
+  const d = describe(t);
+  open(`<h2>Delete this entry?</h2><div class="calc"><span>${esc(d.title)}</span><span class="num">${d.amt?fmt(d.amt):""}</span></div><div class="hint" style="color:var(--muted)">${esc(d.sub)}. Your balances will be worked out again without it.</div><div class="sheet-actions"><button class="btn ghost" type="button" id="f-cancel">Keep</button><button class="btn out" type="button" id="f-del">Delete</button></div>`, ()=>{
+    $("f-cancel").onclick = close;
+    $("f-del").onclick = ()=>{ state.tx = state.tx.filter(x=>x.id!==t.id); save(); close(); render(); };
+  });
+});
+
+$("backupBtn").onclick = ()=>{
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  open(`<h2>Backup</h2><div class="hint" style="color:var(--muted)">Copy this code and send it to Dad, or keep it in your notes. Restore brings everything back if your phone loses the data.</div><textarea id="b-code" rows="6" readonly>${code}</textarea><div class="err" id="f-err"></div><div class="sheet-actions"><button class="btn ghost" type="button" id="f-cancel">Close</button><button class="btn" type="button" id="b-copy">Copy code</button></div>`, ()=>{
+    $("f-cancel").onclick = close;
+    $("b-copy").onclick = ()=>{ const ta=$("b-code"); navigator.clipboard?.writeText(ta.value).then(()=>{$("b-copy").textContent="Copied";}).catch(()=>{ta.select(); $("f-err").textContent="Select all the text and copy it.";}) ?? (ta.select()); };
+  });
+};
+$("restoreBtn").onclick = ()=>{
+  open(`<h2>Restore</h2><div class="hint" style="color:var(--muted)">Paste a backup code. This replaces everything currently in the tracker.</div><textarea id="b-code" rows="6"></textarea>${actions("Restore")}`, ()=>{
+    wire(()=>{
+      try { const s = JSON.parse(decodeURIComponent(escape(atob($("b-code").value.trim())))); if (!Array.isArray(s.tx)) throw 0; state = s; save(); close(); render(); }
+      catch(e){ return "That code doesn't work. Copy the whole backup code and try again."; }
+    });
+  });
+};
+
+$("inBtn").onclick = ()=>moneyIn("pocket");
+$("outBtn").onclick = spend;
+$("moveBtn").onclick = move;
+$("startBtn").onclick = startBalances;
+render();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
+</script>
+
+</body></html>
